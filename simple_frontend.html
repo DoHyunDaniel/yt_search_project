@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube 검색어 유사도 검색</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 50%, #9b59b6 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .main-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            width: 250px;
+            background: rgba(44, 62, 80, 0.95);
+            backdrop-filter: blur(15px);
+            padding: 30px 20px;
+            box-shadow: 2px 0 15px rgba(0,0,0,0.2);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease-in-out;
+            z-index: 1000;
+        }
+
+        .navbar.open {
+            transform: translateX(0);
+        }
+
+        .navbar-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #3498db, #9b59b6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .navbar-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .navbar h2 {
+            color: #ecf0f1;
+            margin-bottom: 30px;
+            font-size: 1.5rem;
+            text-align: center;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .nav-item {
+            margin-bottom: 10px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 15px 20px;
+            color: #bdc3c7;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: linear-gradient(135deg, #3498db, #9b59b6);
+            color: white;
+            transform: translateX(5px);
+            border-color: rgba(255,255,255,0.2);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .content {
+            flex: 1;
+            margin-left: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        .content.navbar-open {
+            margin-left: 250px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3498db, #9b59b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header p {
+            color: #5d6d7e;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .info-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #3498db, #9b59b6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .info-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .search-form {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #3498db, #9b59b6);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            background: #ccc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .results-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .video-card {
+            background: rgba(248, 249, 250, 0.8);
+            backdrop-filter: blur(5px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid #3498db;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(52, 152, 219, 0.2);
+        }
+
+        .video-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.2);
+            border-left-color: #9b59b6;
+        }
+
+        .video-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3498db, #9b59b6);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-card:hover::before {
+            opacity: 1;
+        }
+
+        .video-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .video-description {
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .video-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .video-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag {
+            background: #e9ecef;
+            color: #495057;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .similarity-score {
+            background: linear-gradient(135deg, #3498db, #9b59b6);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .similarity-score::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .similarity-score:hover::before {
+            left: 100%;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* 모달 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #666;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .modal h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .algorithm-step {
+            background: rgba(248, 249, 250, 0.8);
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            border: 1px solid rgba(52, 152, 219, 0.2);
+        }
+
+        .algorithm-step h3 {
+            color: #3498db;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .algorithm-step p {
+            color: #666;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                width: 200px;
+            }
+            
+            .content.navbar-open {
+                margin-left: 200px;
+            }
+            
+            .search-form {
+                flex-direction: column;
+            }
+
+            .search-input {
+                min-width: auto;
+            }
+
+            .video-meta {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .modal-content {
+                margin: 10% auto;
+                width: 95%;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-layout">
+        <!-- 네비게이션 토글 버튼 -->
+        <button class="navbar-toggle" onclick="toggleNavbar()">☰</button>
+        
+        <!-- 왼쪽 네비게이션 바 -->
+        <nav class="navbar" id="navbar">
+            <h2>행궁에 대해</h2>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="simple_frontend.html" class="nav-link active">🏠 검색</a>
+                </li>
+                <li class="nav-item">
+                    <a href="stats.html" class="nav-link">📊 통계</a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- 메인 콘텐츠 -->
+        <div class="content" id="content">
+            <div class="container">
+                <div class="header">
+                    <h1>🔍 행궁에 대해</h1>
+                    <p>궁금한 검색어를 입력해보세요. 검색어와 가장 유사한 검색결과를 제공합니다.</p>
+                </div>
+
+        <form class="search-form" id="searchForm">
+            <input 
+                type="text" 
+                class="search-input" 
+                id="searchInput" 
+                placeholder="검색어를 입력하세요 (예: 궁궐 데이트, 경복궁 카페)"
+                required
+            >
+            <button type="submit" class="search-btn" id="searchBtn">
+                검색
+            </button>
+        </form>
+
+                <div id="resultsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 정보 버튼 -->
+    <button class="info-btn" onclick="openModal()">?</button>
+
+    <!-- 알고리즘 설명 모달 -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>🔍 검색 알고리즘 작동 방식</h2>
+            
+            <div class="algorithm-step">
+                <h3>1️⃣ 키워드 매칭</h3>
+                <p>입력한 검색어를 행궁 관련 키워드와 비교하여 가장 유사한 키워드를 찾습니다. 예를 들어 "데이트"를 입력하면 "궁궐 커플여행"과 매칭됩니다.</p>
+            </div>
+            
+            <div class="algorithm-step">
+                <h3>2️⃣ 의미 기반 매핑</h3>
+                <p>일반적인 검색어를 행궁 맥락으로 변환합니다. "카페" → "궁궐 카페", "식당" → "궁궐 맛집" 등으로 의미를 확장합니다.</p>
+            </div>
+            
+            <div class="algorithm-step">
+                <h3>3️⃣ 데이터베이스 검색</h3>
+                <p>매칭된 키워드로 YouTube 영상 데이터베이스에서 관련 영상을 검색합니다. 제목에 해당 키워드가 포함된 영상들을 찾습니다.</p>
+            </div>
+            
+            <div class="algorithm-step">
+                <h3>4️⃣ 유사도 계산</h3>
+                <p>원본 검색어와 매칭된 키워드의 유사도를 계산하여 최종 점수를 산출합니다. 더 유사한 검색어일수록 높은 점수를 받습니다.</p>
+            </div>
+            
+            <div class="algorithm-step">
+                <h3>5️⃣ 결과 정렬</h3>
+                <p>유사도 점수와 최신 게시일을 기준으로 검색 결과를 정렬하여 가장 관련성 높은 영상들을 상위에 표시합니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SimpleSearchApp {
+            constructor() {
+                this.apiBaseUrl = 'http://localhost:8000';
+                this.searchCount = 0;
+                this.totalResults = 0;
+                this.initializeEventListeners();
+                this.loadStats();
+            }
+
+            initializeEventListeners() {
+                const form = document.getElementById('searchForm');
+                const searchInput = document.getElementById('searchInput');
+                
+                form.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.performSearch();
+                });
+                
+                // Enter 키로도 검색 가능하도록
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.performSearch();
+                    }
+                });
+            }
+
+            async performSearch() {
+                const query = document.getElementById('searchInput').value.trim();
+                if (!query) return;
+
+                this.showLoading();
+
+                try {
+                    const videos = await this.searchVideos(query);
+                    this.displayResults(videos);
+                    this.saveSearchHistory(query);
+                } catch (error) {
+                    this.showError('검색 중 오류가 발생했습니다: ' + error.message);
+                }
+            }
+
+            async searchVideos(query) {
+                const params = new URLSearchParams({
+                    q: query,
+                    method: 'jaccard',
+                    limit: 5
+                });
+
+                const response = await fetch(`${this.apiBaseUrl}/similar_search?${params}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                return await response.json();
+            }
+
+            displayResults(videos) {
+                const container = document.getElementById('resultsContainer');
+
+                if (videos.length === 0) {
+                    this.safeSetInnerHTML(container, '<div class="no-results">검색 결과가 없습니다. 다른 검색어를 시도해보세요.</div>');
+                } else {
+                    container.innerHTML = `
+                        <div class="results">
+                            <div class="results-title">검색 결과 (${videos.length}개)</div>
+                            ${videos.map(video => `
+                                <div class="video-card">
+                                    <div class="video-title">${this.escapeHtml(video.title)}</div>
+                                    <div class="video-description">${this.escapeHtml(video.description || '설명이 없습니다.')}</div>
+                                    <div class="video-meta">
+                                        <div class="video-tags">
+                                            ${(video.tags || []).map(tag => `<span class="tag">${this.escapeHtml(tag)}</span>`).join('')}
+                                        </div>
+                                        <div class="similarity-score">
+                                            유사도: ${(video.similarity_score || 0).toFixed(3)}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                // 통계 업데이트
+                this.updateStats(videos.length);
+                this.saveStats();
+                
+                // 검색 완료 후 버튼 상태 초기화
+                this.resetSearchButton();
+            }
+
+            showLoading() {
+                this.safeSetInnerHTML(document.getElementById('resultsContainer'), '<div class="loading">검색 중...</div>');
+                document.getElementById('searchBtn').disabled = true;
+                document.getElementById('searchBtn').textContent = '검색 중...';
+            }
+
+            showError(message) {
+                this.safeSetInnerHTML(document.getElementById('resultsContainer'), `<div class="error">${this.escapeHtml(message)}</div>`);
+                this.resetSearchButton();
+            }
+
+            resetSearchButton() {
+                document.getElementById('searchBtn').disabled = false;
+                document.getElementById('searchBtn').textContent = '검색';
+            }
+
+            updateStats(resultCount) {
+                this.searchCount++;
+                this.totalResults += resultCount;
+            }
+
+            loadStats() {
+                // 로컬 스토리지에서 통계 로드
+                const savedStats = localStorage.getItem('searchStats');
+                if (savedStats) {
+                    this.stats = JSON.parse(savedStats);
+                    this.searchCount = this.stats.searchCount || 0;
+                    this.totalResults = this.stats.totalResults || 0;
+                } else {
+                    this.stats = { recentSearches: [] };
+                }
+            }
+
+            saveStats() {
+                const stats = {
+                    searchCount: this.searchCount,
+                    totalResults: this.totalResults,
+                    lastSearchTime: new Date().toLocaleTimeString(),
+                    recentSearches: this.stats?.recentSearches || []
+                };
+                localStorage.setItem('searchStats', JSON.stringify(stats));
+            }
+
+            saveSearchHistory(query) {
+                if (!this.stats) {
+                    this.stats = { recentSearches: [] };
+                }
+                
+                const searchRecord = {
+                    query: query,
+                    time: new Date().toLocaleTimeString()
+                };
+                
+                this.stats.recentSearches = this.stats.recentSearches || [];
+                this.stats.recentSearches.push(searchRecord);
+                
+                // 최근 50개만 유지
+                if (this.stats.recentSearches.length > 50) {
+                    this.stats.recentSearches = this.stats.recentSearches.slice(-50);
+                }
+                
+                this.saveStats();
+            }
+
+            escapeHtml(text) {
+                if (typeof text !== 'string') return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            // 안전한 HTML 삽입 함수 (XSS 방어)
+            safeSetInnerHTML(element, html) {
+                if (element && typeof html === 'string') {
+                    element.innerHTML = html;
+                }
+            }
+        }
+
+        // 네비게이션 토글 함수
+        function toggleNavbar() {
+            const navbar = document.getElementById('navbar');
+            const content = document.getElementById('content');
+            
+            navbar.classList.toggle('open');
+            content.classList.toggle('navbar-open');
+        }
+
+        // 모달 관련 함수들
+        function openModal() {
+            document.getElementById('infoModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('infoModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // ESC 키로 모달 닫기
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // 앱 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            new SimpleSearchApp();
+        });
+    </script>
+</body>
+</html>
